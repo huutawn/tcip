@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TCIP.Api/TCIP.Api.csproj" />
+    <Project Path="src/TCIP.Business/TCIP.Business.csproj" />
+    <Project Path="src/TCIP.Common/TCIP.Common.csproj" />
+    <Project Path="src/TCIP.Infrastructure/TCIP.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TCIP.Api.Tests/TCIP.Api.Tests.csproj" />
+    <Project Path="tests/TCIP.Business.Tests/TCIP.Business.Tests.csproj" />
+    <Project Path="tests/TCIP.Infrastructure.IntegrationTests/TCIP.Infrastructure.IntegrationTests.csproj" />
+  </Folder>
+</Solution>

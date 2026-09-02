@@ -1,0 +1,46 @@
+# .NET build output
+**/bin/
+**/obj/
+**/publish/
+artifacts/
+
+# Test and coverage output
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# NuGet packages
+*.nupkg
+*.snupkg
+packages/
+!packages/build/
+
+# IDE and editor files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+!.env.sample
+appsettings.Local.json
+secrets.json
+
+# Runtime and OS files
+*.log
+*.db
+*.sqlite
+*.sqlite3
+.DS_Store
+Thumbs.db
+
+# Codex workspace files
+.codex/
