@@ -446,7 +446,9 @@ function AddEventModalDialog({
                 <p className="text-[10px] text-slate-400">
                   {reminderMinutes === 0
                     ? "Hệ thống sẽ gửi thông báo đúng thời điểm sự kiện bắt đầu."
-                    : `Hệ thống sẽ gửi thông báo trước ${reminderMinutes} phút khi sự kiện diễn ra.`}
+                    : repeatReminder
+                      ? `Hệ thống sẽ nhắc mỗi ${repeatEveryMinutes} phút cho đến khi sự kiện bắt đầu.`
+                      : `Hệ thống sẽ gửi thông báo trước ${reminderMinutes} phút khi sự kiện diễn ra.`}
                 </p>
               </div>
             )}

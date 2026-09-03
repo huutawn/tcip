@@ -118,7 +118,6 @@ public sealed class ReminderSchedulerWorker(
             }
 
             var effStart = resolvedOccurrence.StartAtUtc;
-            var initialFire = effStart.AddMinutes(-rule.RemindBeforeMinutes);
             var maxLateness = TimeSpan.FromMinutes(rule.MaxLatenessMinutes);
             var lateness = now - schedule.NextFireAtUtc;
             var isMisfired = lateness > maxLateness;
@@ -128,54 +127,53 @@ public sealed class ReminderSchedulerWorker(
                 case MisfirePolicy.Skip:
                     if (isMisfired)
                     {
-                        AdvanceToNextFutureFireOrOccurrence(rule, schedule, calendarEvent, recurrenceEngine, effStart, initialFire, now);
+                        AdvanceToNextFutureFireOrOccurrence(rule, schedule, calendarEvent, recurrenceEngine, effStart, now);
                     }
                     else
                     {
-                        EmitOutbox(dbContext, rule, schedule, calendarEvent, effStart, schedule.NextFireAtUtc, schedule.RepeatIndex, topic, now);
-                        AdvanceNormal(rule, schedule, calendarEvent, recurrenceEngine, effStart, initialFire, now);
+                        EmitOutbox(dbContext, rule, schedule, calendarEvent, effStart, schedule.NextFireAtUtc, topic, now);
+                        AdvanceNormal(rule, schedule, calendarEvent, recurrenceEngine, effStart, now);
                     }
                     break;
 
                 case MisfirePolicy.FireOnceNow:
                     if (isMisfired)
                     {
-                        var latestMissedFire = FindLatestMissedFireWithinLateness(rule, effStart, initialFire, schedule.RepeatIndex, now, maxLateness);
+                        var latestMissedFire = FindLatestMissedFireWithinLateness(rule, effStart, schedule.NextFireAtUtc, now, maxLateness);
                         if (latestMissedFire.HasValue)
                         {
-                            EmitOutbox(dbContext, rule, schedule, calendarEvent, effStart, latestMissedFire.Value.FireTime, latestMissedFire.Value.RepeatIndex, topic, now);
+                            EmitOutbox(dbContext, rule, schedule, calendarEvent, effStart, latestMissedFire.Value, topic, now);
                         }
-                        AdvanceToNextFutureFireOrOccurrence(rule, schedule, calendarEvent, recurrenceEngine, effStart, initialFire, now);
+                        AdvanceToNextFutureFireOrOccurrence(rule, schedule, calendarEvent, recurrenceEngine, effStart, now);
                     }
                     else
                     {
-                        EmitOutbox(dbContext, rule, schedule, calendarEvent, effStart, schedule.NextFireAtUtc, schedule.RepeatIndex, topic, now);
-                        AdvanceNormal(rule, schedule, calendarEvent, recurrenceEngine, effStart, initialFire, now);
+                        EmitOutbox(dbContext, rule, schedule, calendarEvent, effStart, schedule.NextFireAtUtc, topic, now);
+                        AdvanceNormal(rule, schedule, calendarEvent, recurrenceEngine, effStart, now);
                     }
                     break;
 
                 case MisfirePolicy.CatchUp:
                     if (isMisfired)
                     {
-                        var firstValidFire = FindFirstFireWithinLateness(rule, effStart, initialFire, schedule.RepeatIndex, now, maxLateness);
+                        var firstValidFire = FindFirstFireWithinLateness(rule, effStart, schedule.NextFireAtUtc, now, maxLateness);
                         if (firstValidFire.HasValue)
                         {
-                            schedule.RepeatIndex = firstValidFire.Value.RepeatIndex;
-                            schedule.NextFireAtUtc = firstValidFire.Value.FireTime;
+                            schedule.NextFireAtUtc = firstValidFire.Value;
                             schedule.UpdatedAtUtc = now;
 
-                            EmitOutbox(dbContext, rule, schedule, calendarEvent, effStart, schedule.NextFireAtUtc, schedule.RepeatIndex, topic, now);
-                            AdvanceNormal(rule, schedule, calendarEvent, recurrenceEngine, effStart, initialFire, now);
+                            EmitOutbox(dbContext, rule, schedule, calendarEvent, effStart, schedule.NextFireAtUtc, topic, now);
+                            AdvanceNormal(rule, schedule, calendarEvent, recurrenceEngine, effStart, now);
                         }
                         else
                         {
-                            AdvanceToNextFutureFireOrOccurrence(rule, schedule, calendarEvent, recurrenceEngine, effStart, initialFire, now);
+                            AdvanceToNextFutureFireOrOccurrence(rule, schedule, calendarEvent, recurrenceEngine, effStart, now);
                         }
                     }
                     else
                     {
-                        EmitOutbox(dbContext, rule, schedule, calendarEvent, effStart, schedule.NextFireAtUtc, schedule.RepeatIndex, topic, now);
-                        AdvanceNormal(rule, schedule, calendarEvent, recurrenceEngine, effStart, initialFire, now);
+                        EmitOutbox(dbContext, rule, schedule, calendarEvent, effStart, schedule.NextFireAtUtc, topic, now);
+                        AdvanceNormal(rule, schedule, calendarEvent, recurrenceEngine, effStart, now);
                     }
                     break;
             }
@@ -193,7 +191,6 @@ public sealed class ReminderSchedulerWorker(
         Event calendarEvent,
         DateTimeOffset effStart,
         DateTimeOffset scheduledFire,
-        int repeatIndex,
         string topic,
         DateTimeOffset now)
     {
@@ -204,8 +201,7 @@ public sealed class ReminderSchedulerWorker(
             calendarEvent.Version,
             schedule.OccurrenceStartAtUtc,
             effStart,
-            scheduledFire,
-            repeatIndex);
+            scheduledFire);
 
         dbContext.OutboxMessages.Add(new OutboxMessage
         {
@@ -213,7 +209,6 @@ public sealed class ReminderSchedulerWorker(
             ReminderRuleId = rule.Id,
             OccurrenceStartAtUtc = schedule.OccurrenceStartAtUtc,
             ScheduledFireAtUtc = scheduledFire,
-            RepeatIndex = repeatIndex,
             EventVersion = calendarEvent.Version,
             Topic = topic,
             Payload = JsonSerializer.Serialize(message),
@@ -225,43 +220,27 @@ public sealed class ReminderSchedulerWorker(
         });
     }
 
-    private static (DateTimeOffset FireTime, int RepeatIndex)? FindLatestMissedFireWithinLateness(
+    private static DateTimeOffset? FindLatestMissedFireWithinLateness(
         ReminderRule rule,
         DateTimeOffset effStart,
-        DateTimeOffset initialFire,
-        int startIndex,
+        DateTimeOffset nextFire,
         DateTimeOffset now,
         TimeSpan maxLateness)
     {
-        (DateTimeOffset FireTime, int RepeatIndex)? latest = null;
-        for (var idx = startIndex; idx <= rule.RepeatCount; idx++)
-        {
-            var fire = idx == 0 ? initialFire : initialFire.AddMinutes(idx * (rule.RepeatEveryMinutes ?? 0));
-            if (fire <= now && fire >= now - maxLateness && fire < effStart)
-            {
-                latest = (fire, idx);
-            }
-        }
-        return latest;
+        if (nextFire >= now - maxLateness && nextFire <= now && nextFire < effStart)
+            return LastDueRepeat(rule, nextFire, effStart, now);
+
+        return FirstValidRepeat(rule, nextFire, effStart, now - maxLateness);
     }
 
-    private static (DateTimeOffset FireTime, int RepeatIndex)? FindFirstFireWithinLateness(
+    private static DateTimeOffset? FindFirstFireWithinLateness(
         ReminderRule rule,
         DateTimeOffset effStart,
-        DateTimeOffset initialFire,
-        int startIndex,
+        DateTimeOffset nextFire,
         DateTimeOffset now,
         TimeSpan maxLateness)
     {
-        for (var idx = startIndex; idx <= rule.RepeatCount; idx++)
-        {
-            var fire = idx == 0 ? initialFire : initialFire.AddMinutes(idx * (rule.RepeatEveryMinutes ?? 0));
-            if (fire >= now - maxLateness && fire < effStart)
-            {
-                return (fire, idx);
-            }
-        }
-        return null;
+        return FirstValidRepeat(rule, nextFire, effStart, now - maxLateness);
     }
 
     private static void AdvanceNormal(
@@ -270,21 +249,14 @@ public sealed class ReminderSchedulerWorker(
         Event calendarEvent,
         IRecurrenceEngine recurrenceEngine,
         DateTimeOffset effStart,
-        DateTimeOffset initialFire,
         DateTimeOffset now)
     {
-        if (rule.RepeatCount > 0 && schedule.RepeatIndex < rule.RepeatCount && rule.RepeatEveryMinutes.HasValue)
+        if (TryGetNextRepeatFire(rule, schedule.NextFireAtUtc, effStart, out var nextFire))
         {
-            var nextIndex = schedule.RepeatIndex + 1;
-            var nextFire = initialFire.AddMinutes(nextIndex * rule.RepeatEveryMinutes.Value);
-            if (nextFire < effStart)
-            {
-                schedule.RepeatIndex = nextIndex;
-                schedule.NextFireAtUtc = nextFire;
-                schedule.EventVersion = calendarEvent.Version;
-                schedule.UpdatedAtUtc = now;
-                return;
-            }
+            schedule.NextFireAtUtc = nextFire;
+            schedule.EventVersion = calendarEvent.Version;
+            schedule.UpdatedAtUtc = now;
+            return;
         }
 
         AdvanceToNextOccurrence(rule, schedule, calendarEvent, recurrenceEngine, now);
@@ -296,22 +268,19 @@ public sealed class ReminderSchedulerWorker(
         Event calendarEvent,
         IRecurrenceEngine recurrenceEngine,
         DateTimeOffset effStart,
-        DateTimeOffset initialFire,
         DateTimeOffset now)
     {
-        if (rule.RepeatCount > 0 && rule.RepeatEveryMinutes.HasValue)
+        if (TryGetNextRepeatFire(rule, schedule.NextFireAtUtc, effStart, out var nextFire))
         {
-            for (var idx = schedule.RepeatIndex + 1; idx <= rule.RepeatCount; idx++)
+            var interval = TimeSpan.FromMinutes(rule.RepeatEveryMinutes!.Value);
+            var skipped = Math.Max(0, (long)Math.Floor((now - nextFire).Ticks / (double)interval.Ticks) + 1);
+            nextFire = nextFire.AddTicks(interval.Ticks * skipped);
+            if (nextFire < effStart)
             {
-                var fire = initialFire.AddMinutes(idx * rule.RepeatEveryMinutes.Value);
-                if (fire < effStart && fire > now)
-                {
-                    schedule.RepeatIndex = idx;
-                    schedule.NextFireAtUtc = fire;
-                    schedule.EventVersion = calendarEvent.Version;
-                    schedule.UpdatedAtUtc = now;
-                    return;
-                }
+                schedule.NextFireAtUtc = nextFire;
+                schedule.EventVersion = calendarEvent.Version;
+                schedule.UpdatedAtUtc = now;
+                return;
             }
         }
 
@@ -345,9 +314,55 @@ public sealed class ReminderSchedulerWorker(
         var nextEffStart = nextOccurrence.StartAtUtc;
         schedule.OccurrenceStartAtUtc = nextOccurrence.OriginalStartAtUtc;
         schedule.NextFireAtUtc = nextEffStart.AddMinutes(-rule.RemindBeforeMinutes);
-        schedule.RepeatIndex = 0;
         schedule.EventVersion = calendarEvent.Version;
         schedule.Status = ReminderScheduleStatus.Active;
         schedule.UpdatedAtUtc = now;
+    }
+
+    private static bool TryGetNextRepeatFire(
+        ReminderRule rule,
+        DateTimeOffset currentFire,
+        DateTimeOffset effectiveStart,
+        out DateTimeOffset nextFire)
+    {
+        nextFire = default;
+        if (!rule.RepeatEveryMinutes.HasValue)
+            return false;
+
+        nextFire = currentFire.AddMinutes(rule.RepeatEveryMinutes.Value);
+        return nextFire < effectiveStart;
+    }
+
+    private static DateTimeOffset? FirstValidRepeat(
+        ReminderRule rule,
+        DateTimeOffset nextFire,
+        DateTimeOffset effectiveStart,
+        DateTimeOffset minimumFire)
+    {
+        if (nextFire >= minimumFire && nextFire < effectiveStart)
+            return nextFire;
+
+        if (!rule.RepeatEveryMinutes.HasValue)
+            return null;
+
+        var interval = TimeSpan.FromMinutes(rule.RepeatEveryMinutes.Value);
+        var steps = Math.Max(0, (long)Math.Ceiling((minimumFire - nextFire).Ticks / (double)interval.Ticks));
+        var candidate = nextFire.AddTicks(interval.Ticks * steps);
+        return candidate < effectiveStart ? candidate : null;
+    }
+
+    private static DateTimeOffset LastDueRepeat(
+        ReminderRule rule,
+        DateTimeOffset nextFire,
+        DateTimeOffset effectiveStart,
+        DateTimeOffset now)
+    {
+        if (!rule.RepeatEveryMinutes.HasValue)
+            return nextFire;
+
+        var interval = TimeSpan.FromMinutes(rule.RepeatEveryMinutes.Value);
+        var lastPossible = now < effectiveStart ? now : effectiveStart.AddTicks(-1);
+        var steps = Math.Max(0, (long)Math.Floor((lastPossible - nextFire).Ticks / (double)interval.Ticks));
+        return nextFire.AddTicks(interval.Ticks * steps);
     }
 }

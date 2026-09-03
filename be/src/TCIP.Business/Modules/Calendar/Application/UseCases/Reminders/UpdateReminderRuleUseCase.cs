@@ -45,13 +45,11 @@ public sealed class UpdateReminderRuleUseCase(
         ReminderRuleValidator.Validate(
             request.RemindBeforeMinutes,
             request.RepeatEveryMinutes,
-            request.RepeatCount,
             request.MaxLatenessMinutes);
 
         var statusUnchanged = !request.Status.HasValue || request.Status.Value == rule.Status;
         var ruleUnchanged = rule.RemindBeforeMinutes == request.RemindBeforeMinutes &&
                             rule.RepeatEveryMinutes == request.RepeatEveryMinutes &&
-                            rule.RepeatCount == request.RepeatCount &&
                             rule.MisfirePolicy == request.MisfirePolicy &&
                             rule.MaxLatenessMinutes == request.MaxLatenessMinutes &&
                             statusUnchanged;
@@ -64,7 +62,6 @@ public sealed class UpdateReminderRuleUseCase(
         var now = timeProvider.GetUtcNow();
         rule.RemindBeforeMinutes = request.RemindBeforeMinutes;
         rule.RepeatEveryMinutes = request.RepeatEveryMinutes;
-        rule.RepeatCount = request.RepeatCount;
         rule.MisfirePolicy = request.MisfirePolicy;
         rule.MaxLatenessMinutes = request.MaxLatenessMinutes;
         if (request.Status.HasValue)

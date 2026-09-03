@@ -7,7 +7,6 @@ public sealed record NotificationResponse(
     DateTimeOffset OriginalStartAt,
     DateTimeOffset EffectiveStartAt,
     DateTimeOffset ScheduledFireAt,
-    int RepeatIndex,
     string Title,
     string? Description,
     DateTimeOffset SentAt,

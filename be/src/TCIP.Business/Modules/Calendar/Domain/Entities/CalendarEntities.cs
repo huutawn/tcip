@@ -61,7 +61,6 @@ public sealed class ReminderRule
     public Event Event { get; set; } = null!;
     public int RemindBeforeMinutes { get; set; }
     public int? RepeatEveryMinutes { get; set; }
-    public int RepeatCount { get; set; }
     public MisfirePolicy MisfirePolicy { get; set; } = MisfirePolicy.FireOnceNow;
     public int MaxLatenessMinutes { get; set; } = 15;
     public ReminderRuleStatus Status { get; set; } = ReminderRuleStatus.Active;
@@ -77,7 +76,6 @@ public sealed class ReminderSchedule
     public ReminderRule ReminderRule { get; set; } = null!;
     public DateTimeOffset OccurrenceStartAtUtc { get; set; }
     public DateTimeOffset NextFireAtUtc { get; set; }
-    public int RepeatIndex { get; set; }
     public long EventVersion { get; set; } = 1;
     public ReminderScheduleStatus Status { get; set; } = ReminderScheduleStatus.Active;
     public DateTimeOffset UpdatedAtUtc { get; set; }
@@ -95,7 +93,6 @@ public sealed class Notification
     public DateTimeOffset OriginalStartAtUtc { get; set; }
     public DateTimeOffset EffectiveStartAtUtc { get; set; }
     public DateTimeOffset ScheduledFireAtUtc { get; set; }
-    public int RepeatIndex { get; set; }
     public string Title { get; set; } = null!;
     public string? Description { get; set; }
     public DateTimeOffset SentAtUtc { get; set; }
@@ -108,7 +105,6 @@ public sealed class OutboxMessage
     public Guid ReminderRuleId { get; set; }
     public DateTimeOffset OccurrenceStartAtUtc { get; set; }
     public DateTimeOffset ScheduledFireAtUtc { get; set; }
-    public int RepeatIndex { get; set; }
     public long EventVersion { get; set; }
     public string Topic { get; set; } = null!;
     public string Payload { get; set; } = null!;

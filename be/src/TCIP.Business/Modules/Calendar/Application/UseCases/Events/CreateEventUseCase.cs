@@ -88,7 +88,6 @@ public sealed class CreateEventUseCase(
             ReminderRuleValidator.Validate(
                 ruleReq.RemindBeforeMinutes,
                 ruleReq.RepeatEveryMinutes,
-                ruleReq.RepeatCount,
                 ruleReq.MaxLatenessMinutes);
 
             var ruleId = Guid.NewGuid();
@@ -98,7 +97,6 @@ public sealed class CreateEventUseCase(
                 EventId = calendarEvent.Id,
                 RemindBeforeMinutes = ruleReq.RemindBeforeMinutes,
                 RepeatEveryMinutes = ruleReq.RepeatEveryMinutes,
-                RepeatCount = ruleReq.RepeatCount,
                 MisfirePolicy = ruleReq.MisfirePolicy,
                 MaxLatenessMinutes = ruleReq.MaxLatenessMinutes,
                 Status = ReminderRuleStatus.Active,

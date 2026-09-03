@@ -88,7 +88,6 @@ public sealed class PostgresIntegrationTests
             ReminderRuleId = rule.Id,
             OccurrenceStartAtUtc = startAt,
             NextFireAtUtc = dueFire,
-            RepeatIndex = 0,
             EventVersion = 1L,
             Status = ReminderScheduleStatus.Active,
             UpdatedAtUtc = nowUtc
@@ -173,7 +172,6 @@ public sealed class PostgresIntegrationTests
             startAt,
             startAt,
             startAt.AddMinutes(-15),
-            0,
             [user.Id]);
 
         var recurrence = new RecurrenceEngine();

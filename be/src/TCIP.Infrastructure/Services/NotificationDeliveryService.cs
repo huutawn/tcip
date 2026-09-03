@@ -53,8 +53,7 @@ public sealed class NotificationDeliveryService(
             message.ReminderRuleId,
             message.OriginalStartAtUtc,
             message.EffectiveStartAtUtc,
-            message.ScheduledFireAtUtc,
-            message.RepeatIndex);
+            message.ScheduledFireAtUtc);
 
         if (!validation.IsValid)
         {
@@ -105,7 +104,7 @@ public sealed class NotificationDeliveryService(
                 var existing = await dbContext.Notifications.AnyAsync(n =>
                     n.ReminderRuleId == message.ReminderRuleId &&
                     n.OriginalStartAtUtc == message.OriginalStartAtUtc &&
-                    n.RepeatIndex == message.RepeatIndex &&
+                    n.ScheduledFireAtUtc == message.ScheduledFireAtUtc &&
                     n.RecipientUserId == item.RecipientUserId, cancellationToken);
 
                 if (!existing)
@@ -119,7 +118,6 @@ public sealed class NotificationDeliveryService(
                         OriginalStartAtUtc = message.OriginalStartAtUtc,
                         EffectiveStartAtUtc = message.EffectiveStartAtUtc,
                         ScheduledFireAtUtc = message.ScheduledFireAtUtc,
-                        RepeatIndex = message.RepeatIndex,
                         Title = item.Title,
                         Description = item.Description,
                         SentAtUtc = now
@@ -155,7 +153,6 @@ public sealed class NotificationDeliveryService(
                         message.OriginalStartAtUtc,
                         message.EffectiveStartAtUtc,
                         message.ScheduledFireAtUtc,
-                        message.RepeatIndex,
                         row.Title,
                         row.Description,
                         row.SentAtUtc,
@@ -203,12 +200,11 @@ public sealed class NotificationDeliveryService(
             var pOrigStart = $"@p{index++}";
             var pEffStart = $"@p{index++}";
             var pSchedFire = $"@p{index++}";
-            var pRepeatIndex = $"@p{index++}";
             var pTitle = $"@p{index++}";
             var pDesc = $"@p{index++}";
             var pSentAt = $"@p{index++}";
 
-            valuesClauses.Add($"({pId}, {pRuleId}, {pEventId}, {pUserId}, {pOrigStart}, {pEffStart}, {pSchedFire}, {pRepeatIndex}, {pTitle}, {pDesc}, {pSentAt})");
+            valuesClauses.Add($"({pId}, {pRuleId}, {pEventId}, {pUserId}, {pOrigStart}, {pEffStart}, {pSchedFire}, {pTitle}, {pDesc}, {pSentAt})");
 
             cmd.Parameters.Add(new NpgsqlParameter(pId, NpgsqlDbType.Uuid) { Value = item.Id });
             cmd.Parameters.Add(new NpgsqlParameter(pRuleId, NpgsqlDbType.Uuid) { Value = message.ReminderRuleId });
@@ -217,7 +213,6 @@ public sealed class NotificationDeliveryService(
             cmd.Parameters.Add(new NpgsqlParameter(pOrigStart, NpgsqlDbType.TimestampTz) { Value = message.OriginalStartAtUtc });
             cmd.Parameters.Add(new NpgsqlParameter(pEffStart, NpgsqlDbType.TimestampTz) { Value = message.EffectiveStartAtUtc });
             cmd.Parameters.Add(new NpgsqlParameter(pSchedFire, NpgsqlDbType.TimestampTz) { Value = message.ScheduledFireAtUtc });
-            cmd.Parameters.Add(new NpgsqlParameter(pRepeatIndex, NpgsqlDbType.Integer) { Value = message.RepeatIndex });
             cmd.Parameters.Add(new NpgsqlParameter(pTitle, NpgsqlDbType.Varchar) { Value = item.Title });
             cmd.Parameters.Add(new NpgsqlParameter(pDesc, NpgsqlDbType.Text) { Value = (object?)item.Description ?? DBNull.Value });
             cmd.Parameters.Add(new NpgsqlParameter(pSentAt, NpgsqlDbType.TimestampTz) { Value = now });
@@ -227,10 +222,10 @@ public sealed class NotificationDeliveryService(
             INSERT INTO notifications (
                 id, reminder_rule_id, event_id, recipient_user_id,
                 original_start_at_utc, effective_start_at_utc, scheduled_fire_at_utc,
-                repeat_index, title, description, sent_at_utc
+                title, description, sent_at_utc
             )
             VALUES {string.Join(",\n", valuesClauses)}
-            ON CONFLICT (reminder_rule_id, original_start_at_utc, repeat_index, recipient_user_id) DO NOTHING
+            ON CONFLICT (reminder_rule_id, original_start_at_utc, scheduled_fire_at_utc, recipient_user_id) DO NOTHING
             RETURNING id, recipient_user_id, title, description, sent_at_utc;
             """;
 

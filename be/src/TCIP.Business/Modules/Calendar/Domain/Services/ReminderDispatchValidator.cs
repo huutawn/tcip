@@ -14,8 +14,7 @@ public interface IReminderDispatchValidator
         Guid reminderRuleId,
         DateTimeOffset originalStartAtUtc,
         DateTimeOffset effectiveStartAtUtc,
-        DateTimeOffset scheduledFireAtUtc,
-        int repeatIndex);
+        DateTimeOffset scheduledFireAtUtc);
 }
 
 public sealed class ReminderDispatchValidator(IRecurrenceEngine recurrenceEngine) : IReminderDispatchValidator
@@ -27,8 +26,7 @@ public sealed class ReminderDispatchValidator(IRecurrenceEngine recurrenceEngine
         Guid reminderRuleId,
         DateTimeOffset originalStartAtUtc,
         DateTimeOffset effectiveStartAtUtc,
-        DateTimeOffset scheduledFireAtUtc,
-        int repeatIndex)
+        DateTimeOffset scheduledFireAtUtc)
     {
         if (calendarEvent is null || calendarEvent.Status != EventStatus.Active)
         {
@@ -45,11 +43,6 @@ public sealed class ReminderDispatchValidator(IRecurrenceEngine recurrenceEngine
             return DispatchValidationResult.Drop("Reminder rule inactive or mismatched.");
         }
 
-        if (repeatIndex < 0 || repeatIndex > rule.RepeatCount)
-        {
-            return DispatchValidationResult.Drop($"RepeatIndex '{repeatIndex}' is outside rule bounds (RepeatCount={rule.RepeatCount}).");
-        }
-
         var occurrence = recurrenceEngine.ResolveOriginalOccurrence(calendarEvent, originalStartAtUtc);
         if (occurrence is null)
         {
@@ -57,15 +50,22 @@ public sealed class ReminderDispatchValidator(IRecurrenceEngine recurrenceEngine
         }
 
         var initialFire = occurrence.StartAtUtc.AddMinutes(-rule.RemindBeforeMinutes);
-        var expectedFire = initialFire;
-        if (repeatIndex > 0 && rule.RepeatEveryMinutes.HasValue)
+        if (occurrence.StartAtUtc != effectiveStartAtUtc ||
+            scheduledFireAtUtc < initialFire ||
+            scheduledFireAtUtc >= occurrence.StartAtUtc)
         {
-            expectedFire = initialFire.AddMinutes(repeatIndex * rule.RepeatEveryMinutes.Value);
+            return DispatchValidationResult.Drop($"Timing changed: received fire '{scheduledFireAtUtc}', expected a time from '{initialFire}' until '{occurrence.StartAtUtc}'; expected start '{occurrence.StartAtUtc}', received '{effectiveStartAtUtc}'.");
         }
 
-        if (occurrence.StartAtUtc != effectiveStartAtUtc || expectedFire != scheduledFireAtUtc)
+        if (!rule.RepeatEveryMinutes.HasValue && scheduledFireAtUtc != initialFire)
         {
-            return DispatchValidationResult.Drop($"Timing changed: expected fire '{expectedFire}', received '{scheduledFireAtUtc}'; expected start '{occurrence.StartAtUtc}', received '{effectiveStartAtUtc}'.");
+            return DispatchValidationResult.Drop($"Timing changed: expected fire '{initialFire}', received '{scheduledFireAtUtc}'.");
+        }
+
+        if (rule.RepeatEveryMinutes.HasValue &&
+            (scheduledFireAtUtc - initialFire).Ticks % TimeSpan.FromMinutes(rule.RepeatEveryMinutes.Value).Ticks != 0)
+        {
+            return DispatchValidationResult.Drop($"Scheduled fire '{scheduledFireAtUtc}' is outside the {rule.RepeatEveryMinutes.Value}-minute repeat cadence.");
         }
 
         return DispatchValidationResult.Valid(occurrence);

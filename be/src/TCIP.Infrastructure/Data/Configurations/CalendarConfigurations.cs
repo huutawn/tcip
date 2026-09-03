@@ -89,7 +89,7 @@ public sealed class ReminderRuleConfiguration : IEntityTypeConfiguration<Reminde
     {
         builder.ToTable("reminder_rules", t =>
         {
-            t.HasCheckConstraint("ck_reminder_rules_repeat", "repeat_count >= 0 AND (repeat_count = 0 OR (repeat_every_minutes IS NOT NULL AND repeat_every_minutes > 0))");
+            t.HasCheckConstraint("ck_reminder_rules_repeat_interval", "repeat_every_minutes IS NULL OR repeat_every_minutes > 0");
             t.HasCheckConstraint("ck_reminder_rules_max_lateness", "max_lateness_minutes >= 0");
             t.HasCheckConstraint("ck_reminder_rules_remind_before", "remind_before_minutes >= 0");
         });
@@ -98,7 +98,6 @@ public sealed class ReminderRuleConfiguration : IEntityTypeConfiguration<Reminde
         builder.Property(x => x.EventId).HasColumnName("event_id").IsRequired();
         builder.Property(x => x.RemindBeforeMinutes).HasColumnName("remind_before_minutes").IsRequired();
         builder.Property(x => x.RepeatEveryMinutes).HasColumnName("repeat_every_minutes");
-        builder.Property(x => x.RepeatCount).HasColumnName("repeat_count").IsRequired();
         builder.Property(x => x.MisfirePolicy).HasColumnName("misfire_policy").HasConversion<string>().HasMaxLength(32).IsRequired();
         builder.Property(x => x.MaxLatenessMinutes).HasColumnName("max_lateness_minutes").IsRequired();
         builder.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(32).IsRequired();
@@ -114,15 +113,11 @@ public sealed class ReminderScheduleConfiguration : IEntityTypeConfiguration<Rem
 {
     public void Configure(EntityTypeBuilder<ReminderSchedule> builder)
     {
-        builder.ToTable("reminder_schedules", t =>
-        {
-            t.HasCheckConstraint("ck_reminder_schedules_repeat_index", "repeat_index >= 0");
-        });
+        builder.ToTable("reminder_schedules");
         builder.HasKey(x => x.ReminderRuleId);
         builder.Property(x => x.ReminderRuleId).HasColumnName("reminder_rule_id");
         builder.Property(x => x.OccurrenceStartAtUtc).HasColumnName("occurrence_start_at_utc").IsRequired();
         builder.Property(x => x.NextFireAtUtc).HasColumnName("next_fire_at_utc").IsRequired();
-        builder.Property(x => x.RepeatIndex).HasColumnName("repeat_index").IsRequired();
         builder.Property(x => x.EventVersion).HasColumnName("event_version").IsRequired();
         builder.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(32).IsRequired();
         builder.Property(x => x.UpdatedAtUtc).HasColumnName("updated_at_utc").IsRequired();
@@ -136,10 +131,7 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
 {
     public void Configure(EntityTypeBuilder<Notification> builder)
     {
-        builder.ToTable("notifications", t =>
-        {
-            t.HasCheckConstraint("ck_notifications_repeat_index", "repeat_index >= 0");
-        });
+        builder.ToTable("notifications");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Id).HasColumnName("id");
         builder.Property(x => x.ReminderRuleId).HasColumnName("reminder_rule_id").IsRequired();
@@ -148,7 +140,6 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
         builder.Property(x => x.OriginalStartAtUtc).HasColumnName("original_start_at_utc").IsRequired();
         builder.Property(x => x.EffectiveStartAtUtc).HasColumnName("effective_start_at_utc").IsRequired();
         builder.Property(x => x.ScheduledFireAtUtc).HasColumnName("scheduled_fire_at_utc").IsRequired();
-        builder.Property(x => x.RepeatIndex).HasColumnName("repeat_index").IsRequired();
         builder.Property(x => x.Title).HasColumnName("title").HasMaxLength(200).IsRequired();
         builder.Property(x => x.Description).HasColumnName("description");
         builder.Property(x => x.SentAtUtc).HasColumnName("sent_at_utc").IsRequired();
@@ -158,7 +149,7 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
         builder.HasOne(x => x.Event).WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne(x => x.RecipientUser).WithMany().HasForeignKey(x => x.RecipientUserId).OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasIndex(x => new { x.ReminderRuleId, x.OriginalStartAtUtc, x.RepeatIndex, x.RecipientUserId }).IsUnique();
+        builder.HasIndex(x => new { x.ReminderRuleId, x.OriginalStartAtUtc, x.ScheduledFireAtUtc, x.RecipientUserId }).IsUnique();
         builder.HasIndex(x => new { x.RecipientUserId, x.ReadAtUtc, x.SentAtUtc });
     }
 }
@@ -169,7 +160,6 @@ public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outbox
     {
         builder.ToTable("outbox_messages", t =>
         {
-            t.HasCheckConstraint("ck_outbox_messages_repeat_index", "repeat_index >= 0");
             t.HasCheckConstraint("ck_outbox_messages_attempt_count", "attempt_count >= 0");
         });
         builder.HasKey(x => x.Id);
@@ -177,7 +167,6 @@ public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outbox
         builder.Property(x => x.ReminderRuleId).HasColumnName("reminder_rule_id").IsRequired();
         builder.Property(x => x.OccurrenceStartAtUtc).HasColumnName("occurrence_start_at_utc").IsRequired();
         builder.Property(x => x.ScheduledFireAtUtc).HasColumnName("scheduled_fire_at_utc").IsRequired();
-        builder.Property(x => x.RepeatIndex).HasColumnName("repeat_index").IsRequired();
         builder.Property(x => x.EventVersion).HasColumnName("event_version").IsRequired();
         builder.Property(x => x.Topic).HasColumnName("topic").HasMaxLength(200).IsRequired();
         builder.Property(x => x.Payload).HasColumnName("payload").HasColumnType("jsonb").IsRequired();
@@ -191,6 +180,6 @@ public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outbox
         builder.Property(x => x.UpdatedAtUtc).HasColumnName("updated_at_utc").IsRequired();
 
         builder.HasIndex(x => new { x.Status, x.NextAttemptAtUtc });
-        builder.HasIndex(x => new { x.ReminderRuleId, x.OccurrenceStartAtUtc, x.ScheduledFireAtUtc, x.RepeatIndex, x.EventVersion }).IsUnique();
+        builder.HasIndex(x => new { x.ReminderRuleId, x.OccurrenceStartAtUtc, x.ScheduledFireAtUtc, x.EventVersion }).IsUnique();
     }
 }

@@ -155,8 +155,7 @@ public sealed class AudienceResolverWorker(
             message.ReminderRuleId,
             message.OriginalStartAtUtc,
             message.EffectiveStartAtUtc,
-            message.ScheduledFireAtUtc,
-            message.RepeatIndex);
+            message.ScheduledFireAtUtc);
 
         if (!validationResult.IsValid)
         {
@@ -193,7 +192,6 @@ public sealed class AudienceResolverWorker(
                 message.OriginalStartAtUtc,
                 message.EffectiveStartAtUtc,
                 message.ScheduledFireAtUtc,
-                message.RepeatIndex,
                 batchRecipients);
 
             await producer.ProduceAsync(

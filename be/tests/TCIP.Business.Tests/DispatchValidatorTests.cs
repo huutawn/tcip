@@ -35,8 +35,7 @@ public sealed class DispatchValidatorTests
             rule.Id,
             ev.StartAtUtc,
             ev.StartAtUtc,
-            ev.StartAtUtc.AddMinutes(-15),
-            0);
+            ev.StartAtUtc.AddMinutes(-15));
 
         Assert.False(result.IsValid);
         Assert.Contains("cancelled", result.DropReason, StringComparison.OrdinalIgnoreCase);
@@ -80,8 +79,7 @@ public sealed class DispatchValidatorTests
             rule.Id,
             origStart,
             origStart, // Old timing
-            origStart.AddMinutes(-15),
-            0);
+            origStart.AddMinutes(-15));
 
         Assert.False(result.IsValid);
         Assert.Contains("timing", result.DropReason, StringComparison.OrdinalIgnoreCase);
@@ -117,8 +115,7 @@ public sealed class DispatchValidatorTests
             rule.Id,
             origStart,
             origStart,
-            origStart.AddMinutes(-15),
-            0);
+            origStart.AddMinutes(-15));
 
         Assert.True(result.IsValid);
         Assert.NotNull(result.Occurrence);

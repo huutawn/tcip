@@ -39,7 +39,6 @@ public sealed class AddReminderRuleUseCase(
         ReminderRuleValidator.Validate(
             request.RemindBeforeMinutes,
             request.RepeatEveryMinutes,
-            request.RepeatCount,
             request.MaxLatenessMinutes);
 
         var now = timeProvider.GetUtcNow();
@@ -53,7 +52,6 @@ public sealed class AddReminderRuleUseCase(
             EventId = eventId,
             RemindBeforeMinutes = request.RemindBeforeMinutes,
             RepeatEveryMinutes = request.RepeatEveryMinutes,
-            RepeatCount = request.RepeatCount,
             MisfirePolicy = request.MisfirePolicy,
             MaxLatenessMinutes = request.MaxLatenessMinutes,
             Status = ReminderRuleStatus.Active,

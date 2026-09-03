@@ -5,7 +5,6 @@ using TCIP.Business.Modules.Calendar.Domain.Enums;
 using TCIP.Business.Modules.Calendar.Domain.Services;
 using TCIP.Business.Modules.Identity.Domain.Entities;
 using TCIP.Business.Tests.TestDoubles;
-using TCIP.Common.Exceptions;
 using Xunit;
 
 namespace TCIP.Business.Tests;
@@ -26,36 +25,34 @@ public sealed class ReminderAndMisfireTests
     }
 
     [Fact]
-    public async Task CreateReminderRule_LastRepeatExceedsOccurrenceStart_ThrowsBadRequestException()
+    public async Task CreateReminderRule_RepeatInterval_CreatesAnOpenEndedRepeatRule()
     {
-        var (service, _, user) = CreateTestContext();
+        var (service, repo, user) = CreateTestContext();
 
-        // RemindBefore = 30 min, RepeatCount = 3, RepeatEvery = 15 min => 3 * 15 = 45 min >= 30 min! (Invalid)
-        var invalidRuleReq = new CreateReminderRuleRequest(
+        var repeatRuleReq = new CreateReminderRuleRequest(
             RemindBeforeMinutes: 30,
-            RepeatEveryMinutes: 15,
-            RepeatCount: 3);
+            RepeatEveryMinutes: 15);
 
-        await Assert.ThrowsAsync<BadRequestException>(() =>
-            service.CreateEventAsync(new CreateEventRequest
-            {
-                StartAt = new DateTimeOffset(2026, 9, 2, 10, 0, 0, TimeSpan.Zero),
-                Translations = [new EventTranslationRequest("en", "Meeting", null)],
-                ReminderRules = [invalidRuleReq]
-            }, user.Id, default));
+        var created = await service.CreateEventAsync(new CreateEventRequest
+        {
+            StartAt = new DateTimeOffset(2026, 9, 2, 10, 0, 0, TimeSpan.Zero),
+            Translations = [new EventTranslationRequest("en", "Meeting", null)],
+            ReminderRules = [repeatRuleReq]
+        }, user.Id, default);
+
+        Assert.Equal(15, repo.Events[created.Id].ReminderRules.Single().RepeatEveryMinutes);
     }
 
     [Fact]
-    public async Task CreateReminderRule_ValidRepeatRule_CreatesScheduleWithInitialRepeatIndexZero()
+    public async Task CreateReminderRule_ValidRepeatRule_CreatesInitialSchedule()
     {
         var (service, repo, user) = CreateTestContext();
 
         var start = new DateTimeOffset(2026, 9, 2, 10, 0, 0, TimeSpan.Zero);
-        // RemindBefore = 60 min, RepeatCount = 2, RepeatEvery = 20 min (fires at -60m, -40m, -20m < start)
+        // The scheduler continues every 20 minutes until the occurrence starts.
         var validRuleReq = new CreateReminderRuleRequest(
             RemindBeforeMinutes: 60,
-            RepeatEveryMinutes: 20,
-            RepeatCount: 2);
+            RepeatEveryMinutes: 20);
 
         var created = await service.CreateEventAsync(new CreateEventRequest
         {
@@ -67,7 +64,6 @@ public sealed class ReminderAndMisfireTests
         var ev = repo.Events[created.Id];
         var schedule = ev.ReminderRules.Single().Schedule!;
 
-        Assert.Equal(0, schedule.RepeatIndex);
         Assert.Equal(start.AddMinutes(-60), schedule.NextFireAtUtc);
         Assert.Equal(ReminderScheduleStatus.Active, schedule.Status);
     }

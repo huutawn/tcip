@@ -120,7 +120,6 @@ public sealed class CalendarUseCasesTests
             OriginalStartAtUtc = DateTimeOffset.UtcNow,
             EffectiveStartAtUtc = DateTimeOffset.UtcNow,
             ScheduledFireAtUtc = DateTimeOffset.UtcNow,
-            RepeatIndex = 0,
             Title = "Alert",
             SentAtUtc = DateTimeOffset.UtcNow
         };

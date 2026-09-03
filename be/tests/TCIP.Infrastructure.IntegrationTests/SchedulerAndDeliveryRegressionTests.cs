@@ -98,12 +98,11 @@ public sealed class SchedulerAndDeliveryRegressionTests
             Id = Guid.NewGuid(),
             EventId = ev.Id,
             RemindBeforeMinutes = 15,
-            RepeatCount = 2,
             RepeatEveryMinutes = 5,
             Status = ReminderRuleStatus.Active
         };
 
-        // RepeatIndex 5 exceeds rule.RepeatCount 2
+        // 09:46 is not aligned to the five-minute cadence from 09:45.
         var result = validator.ValidateDispatch(
             ev,
             rule,
@@ -111,11 +110,10 @@ public sealed class SchedulerAndDeliveryRegressionTests
             rule.Id,
             start,
             start,
-            start.AddMinutes(-15),
-            5);
+            start.AddMinutes(-14));
 
         Assert.False(result.IsValid);
-        Assert.Contains("outside rule bounds", result.DropReason);
+        Assert.Contains("repeat cadence", result.DropReason);
     }
 
     [Fact]
@@ -158,7 +156,6 @@ public sealed class SchedulerAndDeliveryRegressionTests
             ev.StartAtUtc,
             ev.StartAtUtc,
             ev.StartAtUtc.AddMinutes(-15),
-            0,
             [user.Id]);
 
         await service.DeliverBatchAsync(batch, default);

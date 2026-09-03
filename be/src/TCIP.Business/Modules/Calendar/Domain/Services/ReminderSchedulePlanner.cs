@@ -65,7 +65,6 @@ public sealed class ReminderSchedulePlanner(IRecurrenceEngine recurrenceEngine) 
                     ReminderRuleId = rule.Id,
                     OccurrenceStartAtUtc = calendarEvent.StartAtUtc,
                     NextFireAtUtc = calendarEvent.StartAtUtc.AddMinutes(-rule.RemindBeforeMinutes),
-                    RepeatIndex = 0,
                     EventVersion = calendarEvent.Version,
                     Status = ReminderScheduleStatus.Completed,
                     UpdatedAtUtc = now
@@ -82,25 +81,6 @@ public sealed class ReminderSchedulePlanner(IRecurrenceEngine recurrenceEngine) 
 
         var effStart = nextOccurrence.StartAtUtc;
         var initialFire = effStart.AddMinutes(-rule.RemindBeforeMinutes);
-        var targetRepeatIndex = 0;
-        var targetFire = initialFire;
-
-        if (isRebuild && targetFire < now && rule.RepeatCount > 0 && rule.RepeatEveryMinutes.HasValue)
-        {
-            for (var idx = 1; idx <= rule.RepeatCount; idx++)
-            {
-                var repeatFire = initialFire.AddMinutes(idx * rule.RepeatEveryMinutes.Value);
-                if (repeatFire < effStart)
-                {
-                    targetRepeatIndex = idx;
-                    targetFire = repeatFire;
-                    if (repeatFire >= now - TimeSpan.FromMinutes(rule.MaxLatenessMinutes))
-                    {
-                        break;
-                    }
-                }
-            }
-        }
 
         if (rule.Schedule is null)
         {
@@ -108,8 +88,7 @@ public sealed class ReminderSchedulePlanner(IRecurrenceEngine recurrenceEngine) 
             {
                 ReminderRuleId = rule.Id,
                 OccurrenceStartAtUtc = nextOccurrence.OriginalStartAtUtc,
-                NextFireAtUtc = targetFire,
-                RepeatIndex = targetRepeatIndex,
+                NextFireAtUtc = initialFire,
                 EventVersion = calendarEvent.Version,
                 Status = ReminderScheduleStatus.Active,
                 UpdatedAtUtc = now
@@ -118,8 +97,7 @@ public sealed class ReminderSchedulePlanner(IRecurrenceEngine recurrenceEngine) 
         else
         {
             rule.Schedule.OccurrenceStartAtUtc = nextOccurrence.OriginalStartAtUtc;
-            rule.Schedule.NextFireAtUtc = targetFire;
-            rule.Schedule.RepeatIndex = targetRepeatIndex;
+            rule.Schedule.NextFireAtUtc = initialFire;
             rule.Schedule.EventVersion = calendarEvent.Version;
             rule.Schedule.Status = ReminderScheduleStatus.Active;
             rule.Schedule.UpdatedAtUtc = now;

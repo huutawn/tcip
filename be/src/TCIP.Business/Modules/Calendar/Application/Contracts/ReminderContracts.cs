@@ -6,14 +6,12 @@ namespace TCIP.Business.Modules.Calendar.Application.Contracts;
 public sealed record CreateReminderRuleRequest(
     [Range(0, int.MaxValue)] int RemindBeforeMinutes,
     [Range(1, int.MaxValue)] int? RepeatEveryMinutes = null,
-    [Range(0, int.MaxValue)] int RepeatCount = 0,
     MisfirePolicy MisfirePolicy = MisfirePolicy.FireOnceNow,
     [Range(0, int.MaxValue)] int MaxLatenessMinutes = 15);
 
 public sealed record UpdateReminderRuleRequest(
     [Range(0, int.MaxValue)] int RemindBeforeMinutes,
     [Range(1, int.MaxValue)] int? RepeatEveryMinutes = null,
-    [Range(0, int.MaxValue)] int RepeatCount = 0,
     MisfirePolicy MisfirePolicy = MisfirePolicy.FireOnceNow,
     [Range(0, int.MaxValue)] int MaxLatenessMinutes = 15,
     ReminderRuleStatus? Status = null);
@@ -23,7 +21,6 @@ public sealed record ReminderRuleResponse(
     Guid EventId,
     int RemindBeforeMinutes,
     int? RepeatEveryMinutes,
-    int RepeatCount,
     MisfirePolicy MisfirePolicy,
     int MaxLatenessMinutes,
     ReminderRuleStatus Status,
@@ -37,8 +34,7 @@ public sealed record ReminderDueMessage(
     long EventVersion,
     DateTimeOffset OriginalStartAtUtc,
     DateTimeOffset EffectiveStartAtUtc,
-    DateTimeOffset ScheduledFireAtUtc,
-    int RepeatIndex);
+    DateTimeOffset ScheduledFireAtUtc);
 
 public sealed record NotificationBatchMessage(
     Guid BatchId,
@@ -48,5 +44,4 @@ public sealed record NotificationBatchMessage(
     DateTimeOffset OriginalStartAtUtc,
     DateTimeOffset EffectiveStartAtUtc,
     DateTimeOffset ScheduledFireAtUtc,
-    int RepeatIndex,
     IReadOnlyList<Guid> RecipientUserIds);
