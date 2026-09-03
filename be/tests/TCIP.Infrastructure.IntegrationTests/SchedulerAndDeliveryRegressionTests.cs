@@ -164,6 +164,69 @@ public sealed class SchedulerAndDeliveryRegressionTests
         Assert.Equal("Event Reminder", fakeGateway.Notifications[0].Title);
     }
 
+    [Fact]
+    public async Task CleanUpWorker_DeletesOnlyPublishedMessagesOlderThan15Days()
+    {
+        var services = new ServiceCollection();
+        var dbName = Guid.NewGuid().ToString();
+        services.AddDbContext<TcipDbContext>(options => options.UseInMemoryDatabase(dbName));
+        var sp = services.BuildServiceProvider();
+        var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+
+        var now = new DateTimeOffset(2026, 9, 20, 12, 0, 0, TimeSpan.Zero);
+        using var db = scopeFactory.CreateScope().ServiceProvider.GetRequiredService<TcipDbContext>();
+
+        var oldPublished = new OutboxMessage
+        {
+            Id = Guid.NewGuid(),
+            Topic = "test",
+            Payload = "{}",
+            Status = OutboxMessageStatus.Published,
+            CreatedAtUtc = now.AddDays(-16),
+            PublishedAtUtc = now.AddDays(-16)
+        };
+
+        var recentPublished = new OutboxMessage
+        {
+            Id = Guid.NewGuid(),
+            Topic = "test",
+            Payload = "{}",
+            Status = OutboxMessageStatus.Published,
+            CreatedAtUtc = now.AddDays(-10),
+            PublishedAtUtc = now.AddDays(-10)
+        };
+
+        var oldPending = new OutboxMessage
+        {
+            Id = Guid.NewGuid(),
+            Topic = "test",
+            Payload = "{}",
+            Status = OutboxMessageStatus.Pending,
+            CreatedAtUtc = now.AddDays(-16)
+        };
+
+        db.OutboxMessages.AddRange(oldPublished, recentPublished, oldPending);
+        await db.SaveChangesAsync();
+
+        var timeProvider = new FixedTimeProvider(now);
+        var config = new ConfigurationBuilder().Build();
+        var worker = new CleanUpWorkder(scopeFactory, timeProvider, config, NullLogger<CleanUpWorkder>.Instance);
+
+        var deleted = await worker.CleanupOutdatedOutboxMessagesAsync(default);
+
+        Assert.Equal(1, deleted);
+        using var verifyDb = scopeFactory.CreateScope().ServiceProvider.GetRequiredService<TcipDbContext>();
+        var remainingIds = await verifyDb.OutboxMessages.Select(x => x.Id).ToListAsync();
+        Assert.DoesNotContain(oldPublished.Id, remainingIds);
+        Assert.Contains(recentPublished.Id, remainingIds);
+        Assert.Contains(oldPending.Id, remainingIds);
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
+    }
+
     private sealed class TestGateway : INotificationGateway
     {
         public readonly List<NotificationResponse> Notifications = new();

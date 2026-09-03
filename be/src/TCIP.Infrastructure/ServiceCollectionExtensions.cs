@@ -95,6 +95,7 @@ public static class ServiceCollectionExtensions
             services.AddHostedService<OutboxPublisherWorker>();
             services.AddHostedService<AudienceResolverWorker>();
             services.AddHostedService<NotificationBatchDeliveryWorker>();
+            services.AddHostedService<CleanUpWorkder>();
         }
 
         return services;
