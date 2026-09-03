@@ -30,13 +30,17 @@ function describeReminder(reminder: CalendarEvent["reminders"][number]) {
     : before;
 }
 
-export function EventDetailsDialog({
+interface EventDetailsDialogContentProps extends Omit<EventDetailsDialogProps, "event"> {
+  event: CalendarEvent;
+}
+
+function EventDetailsDialogContent({
   event,
   onClose,
   onCancelEvent,
   onCancelReminder,
   onAddParticipant,
-}: EventDetailsDialogProps) {
+}: EventDetailsDialogContentProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<CalendarEventMember[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -45,31 +49,33 @@ export function EventDetailsDialog({
   const [addingUserId, setAddingUserId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    setQuery("");
-    setResults([]);
-    setErrorMessage(null);
-  }, [event?.id]);
+  const showError = (error: unknown, fallback: string) => {
+    setErrorMessage(
+      error && typeof error === "object" && "message" in error
+        ? String(error.message)
+        : fallback,
+    );
+  };
 
   useEffect(() => {
-    if (!event || query.trim().length < 2) {
-      setResults([]);
-      setIsSearching(false);
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
       return;
     }
 
     const controller = new AbortController();
     const timeout = window.setTimeout(() => {
       setIsSearching(true);
-      calendarService.searchParticipants(event.id, query.trim(), controller.signal)
+      calendarService
+        .searchParticipants(event.id, trimmed, controller.signal)
         .then((members) => {
           if (!controller.signal.aborted) {
             setResults(members);
           }
         })
-        .catch((error: { message?: string }) => {
+        .catch((error: unknown) => {
           if (!controller.signal.aborted) {
-            setErrorMessage(error.message ?? "Không thể tìm thành viên.");
+            showError(error, "Không thể tìm thành viên.");
           }
         })
         .finally(() => {
@@ -83,18 +89,14 @@ export function EventDetailsDialog({
       controller.abort();
       window.clearTimeout(timeout);
     };
-  }, [event, query]);
+  }, [event.id, query]);
 
-  if (!event) {
-    return null;
-  }
-
-  const showError = (error: unknown, fallback: string) => {
-    setErrorMessage(
-      error && typeof error === "object" && "message" in error
-        ? String(error.message)
-        : fallback,
-    );
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    if (value.trim().length < 2) {
+      setResults([]);
+      setIsSearching(false);
+    }
   };
 
   const handleCancelEvent = async () => {
@@ -133,12 +135,16 @@ export function EventDetailsDialog({
       await onAddParticipant(event.id, userId);
       setQuery("");
       setResults([]);
+      setIsSearching(false);
     } catch (error) {
       showError(error, "Không thể thêm thành viên.");
     } finally {
       setAddingUserId(null);
     }
   };
+
+  const hasValidQuery = query.trim().length >= 2;
+  const displayedResults = hasValidQuery ? results : [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="presentation">
@@ -221,18 +227,18 @@ export function EventDetailsDialog({
               id="participant-search"
               type="search"
               value={query}
-              onChange={(input) => setQuery(input.target.value)}
+              onChange={(input) => handleQueryChange(input.target.value)}
               placeholder="Tìm theo tên hoặc email (ít nhất 2 ký tự)"
               className="h-9 w-full rounded-md border border-slate-200 pl-9 pr-3 text-xs outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
             />
           </div>
           {isSearching && <p className="mt-2 text-xs text-slate-500">Đang tìm...</p>}
-          {query.trim().length >= 2 && !isSearching && results.length === 0 && (
+          {hasValidQuery && !isSearching && displayedResults.length === 0 && (
             <p className="mt-2 text-xs text-slate-500">Không tìm thấy thành viên phù hợp.</p>
           )}
-          {results.length > 0 && (
+          {displayedResults.length > 0 && (
             <ul className="mt-2 divide-y divide-slate-100 rounded-md border border-slate-200" aria-label="Kết quả tìm thành viên">
-              {results.map((member) => (
+              {displayedResults.map((member) => (
                 <li key={member.id} className="flex items-center justify-between gap-3 px-3 py-2">
                   <div className="min-w-0 text-xs"><p className="truncate font-medium text-slate-700">{member.displayName}</p><p className="truncate text-slate-500">{member.email}</p></div>
                   <Button type="button" size="sm" disabled={addingUserId === member.id} onClick={() => void handleAddParticipant(member.id)}>
@@ -253,4 +259,12 @@ export function EventDetailsDialog({
       </section>
     </div>
   );
+}
+
+export function EventDetailsDialog(props: EventDetailsDialogProps) {
+  if (!props.event) {
+    return null;
+  }
+
+  return <EventDetailsDialogContent key={props.event.id} {...props} event={props.event} />;
 }
