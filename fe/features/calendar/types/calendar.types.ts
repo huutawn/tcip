@@ -18,13 +18,10 @@ export interface CreateEventRequest {
   startAt: string; // ISO 8601 string
   endAt?: string;
   timeZoneId: string;
-  isRecurring: boolean;
-  recurringWeekdays: DayOfWeek[];
-  recurrenceEndAt?: string;
+  recurrenceRule?: string;
   translations: EventTranslationRequest[];
-  userIds: string[];
-  groupIds: string[];
-  reminders: ReminderRequest[];
+  audiencePrincipalIds: string[];
+  reminderRules: ReminderRequest[];
 }
 
 export interface ReminderRequest {
@@ -52,6 +49,7 @@ export interface CalendarEvent {
   isRecurring: boolean;
   recurringWeekdays: DayOfWeek[];
   recurrenceEndAt?: string;
+  version: number;
   title: string;
   description?: string;
   reminders: EventReminder[];

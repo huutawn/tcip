@@ -2,6 +2,7 @@ export type UserRole = "User" | "Admin";
 
 export interface User {
   id: string;
+  principalId: string;
   email: string;
   displayName: string;
   emailVerified: boolean;
@@ -34,6 +35,7 @@ export interface RegisterRequest {
 
 export interface RegisterResponse {
   id: string;
+  principalId: string;
   email: string;
   displayName: string;
   role: UserRole;

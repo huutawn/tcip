@@ -17,7 +17,6 @@ public sealed class AudienceResolverWorker(
     IServiceScopeFactory scopeFactory,
     IProducer<string, string> producer,
     IReminderDispatchValidator dispatchValidator,
-    IAudienceRecipientResolver recipientResolver,
     TimeProvider timeProvider,
     IConfiguration configuration,
     ILogger<AudienceResolverWorker> logger) : BackgroundService
@@ -138,6 +137,7 @@ public sealed class AudienceResolverWorker(
     {
         using var scope = scopeFactory.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<TcipDbContext>();
+        var recipientResolver = scope.ServiceProvider.GetRequiredService<IAudienceRecipientResolver>();
 
         var calendarEvent = await dbContext.Events
             .AsNoTracking()

@@ -1,5 +1,5 @@
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5024";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export const STORAGE_KEYS = {
   ACCESS_TOKEN: "tcip_access_token",

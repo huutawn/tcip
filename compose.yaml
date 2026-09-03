@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:17.5-alpine
-    container_name: identity-postgres
+    container_name: tcip-postgres
 
     environment:
       POSTGRES_DB: identity
@@ -12,17 +12,17 @@ services:
       - "5432:5432"
 
     volumes:
-      - identity_postgres_data:/var/lib/postgresql/data
+      - tcip_postgres_data:/var/lib/postgresql/data
 
   redis:
     image: redis:7.4-alpine
-    container_name: identity-redis
+    container_name: tcip-redis
     ports:
       - "6379:6379"
 
   kafka:
     image: apache/kafka:4.2.1
-    container_name: identity-kafka
+    container_name: tcip-kafka
     environment:
       CLUSTER_ID: "abcdefghijklmnopqrstuv"
       KAFKA_NODE_ID: "0"
@@ -47,4 +47,4 @@ services:
     command: ["--bootstrap-server", "kafka:9092", "--create", "--if-not-exists", "--topic", "calendar.reminder-due.v1", "--partitions", "3", "--replication-factor", "1"]
 
 volumes:
-  identity_postgres_data:
+  tcip_postgres_data:

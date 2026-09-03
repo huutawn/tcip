@@ -183,11 +183,7 @@ export function DayCalendarView({
           setActiveEventDetails((current) => current && current.id === eventId
             ? {
                 ...current,
-                reminders: current.reminders.map((reminder) =>
-                  reminder.id === reminderId
-                    ? { ...reminder, status: "Cancelled" }
-                    : reminder,
-                ),
+                reminders: current.reminders.filter((reminder) => reminder.id !== reminderId),
               }
             : current);
         }}

@@ -47,6 +47,16 @@ const PRESET_REMINDERS = [
   { value: 60, label: "60p" },
 ];
 
+const RECURRENCE_DAYS: Record<DayOfWeek, string> = {
+  Monday: "MO",
+  Tuesday: "TU",
+  Wednesday: "WE",
+  Thursday: "TH",
+  Friday: "FR",
+  Saturday: "SA",
+  Sunday: "SU",
+};
+
 function AddEventModalDialog({
   onClose,
   onSave,
@@ -172,7 +182,10 @@ function AddEventModalDialog({
     }
 
     const finalUserIds = Array.from(
-      new Set([...(user?.id ? [user.id] : []), ...selectedMembers.map((member) => member.id)])
+      new Set([
+        ...(user?.principalId ? [user.principalId] : []),
+        ...selectedMembers.map((member) => member.id),
+      ])
     );
 
     const finalWeekdays: DayOfWeek[] = [...selectedWeekdays];
@@ -190,8 +203,9 @@ function AddEventModalDialog({
         startAt: startDate.toISOString(),
         endAt: isAllDay ? undefined : endDate.toISOString(),
         timeZoneId: "SE Asia Standard Time",
-        isRecurring,
-        recurringWeekdays: isRecurring ? finalWeekdays : [],
+        recurrenceRule: isRecurring
+          ? `FREQ=WEEKLY;BYDAY=${finalWeekdays.map((day) => RECURRENCE_DAYS[day]).join(",")}`
+          : undefined,
         translations: [
           {
             language: "vi",
@@ -199,9 +213,8 @@ function AddEventModalDialog({
             description: description.trim() || `Cuộc họp / Sự kiện: ${title.trim()}`,
           },
         ],
-        userIds: finalUserIds,
-        groupIds: [],
-        reminders: enableReminder
+        audiencePrincipalIds: finalUserIds,
+        reminderRules: enableReminder
           ? [{
               remindBeforeMinutes: Math.max(0, reminderMinutes),
               repeatEveryMinutes: repeatReminder

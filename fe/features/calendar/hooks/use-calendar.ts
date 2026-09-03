@@ -174,11 +174,7 @@ export function useCalendar() {
       event.id === eventId
         ? {
             ...event,
-            reminders: event.reminders.map((reminder) =>
-              reminder.id === reminderId
-                ? { ...reminder, status: "Cancelled" }
-                : reminder,
-            ),
+            reminders: event.reminders.filter((reminder) => reminder.id !== reminderId),
           }
         : event,
     ));
