@@ -3,7 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using TCIP.Api.Security;
 using TCIP.Business.Modules.AccessControl.Domain.Models;
 using TCIP.Business.Modules.Directory.Application.Contracts;
-using TCIP.Business.Modules.Directory.Application.UseCases;
+using TCIP.Business.Modules.Directory.Application.UseCases.Memberships;
+using TCIP.Business.Modules.Directory.Application.UseCases.Projects;
 using TCIP.Business.Modules.Directory.Domain.Enums;
 
 namespace TCIP.Api.Controllers;
@@ -11,8 +12,12 @@ namespace TCIP.Api.Controllers;
 [ApiController]
 [Route("api/projects")]
 public sealed class ProjectsController(
-    IProjectUseCase projectUseCase,
-    IMembershipUseCase membershipUseCase) : ControllerBase
+    ICreateProjectUseCase createProjectUseCase,
+    IGetProjectByIdUseCase getProjectByIdUseCase,
+    IUpdateProjectUseCase updateProjectUseCase,
+    IDeleteProjectUseCase deleteProjectUseCase,
+    IGetMembersUseCase getMembersUseCase,
+    ISetMemberUseCase setMemberUseCase) : ControllerBase
 {
     [PermissionAuthorize(Permissions.ProjectCreate)]
     [HttpPost]
@@ -24,31 +29,31 @@ public sealed class ProjectsController(
         {
             return Unauthorized();
         }
-        var project = await projectUseCase.CreateAsync(request, ownerId, cancellationToken);
+        var project = await createProjectUseCase.CreateAsync(request, ownerId, cancellationToken);
         return Created($"api/projects/{project.Id}", project);
     }
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<ProjectResponse>> Get(Guid id, CancellationToken cancellationToken) =>
-        (await projectUseCase.GetByIdAsync(id, cancellationToken)) is { } project ? Ok(project) : NotFound();
+        (await getProjectByIdUseCase.GetByIdAsync(id, cancellationToken)) is { } project ? Ok(project) : NotFound();
 
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<ProjectResponse>> Update(
         Guid id,
         UpdateProjectRequest request,
         CancellationToken cancellationToken) =>
-        (await projectUseCase.UpdateAsync(id, request, cancellationToken)) is { } project ? Ok(project) : NotFound();
+        (await updateProjectUseCase.UpdateAsync(id, request, cancellationToken)) is { } project ? Ok(project) : NotFound();
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken) =>
-        await projectUseCase.DeleteAsync(id, cancellationToken) ? NoContent() : NotFound();
+        await deleteProjectUseCase.DeleteAsync(id, cancellationToken) ? NoContent() : NotFound();
 
     [PermissionAuthorize(Permissions.MembershipManage, ResourceRoute = "id", ResourceType = PrincipalType.Project)]
     [HttpGet("{id:guid}/members")]
     public async Task<IActionResult> GetMembers(
         Guid id,
         CancellationToken cancellationToken) =>
-        (await membershipUseCase.GetMembersAsync(PrincipalType.Project, id, cancellationToken)) is { } members
+        (await getMembersUseCase.GetMembersAsync(PrincipalType.Project, id, cancellationToken)) is { } members
             ? Ok(members)
             : NotFound();
 
@@ -61,6 +66,6 @@ public sealed class ProjectsController(
         CancellationToken cancellationToken)
     {
         if (!User.TryGetUserId(out var actorUserId)) return Unauthorized();
-        return await membershipUseCase.SetMemberAsync(PrincipalType.Project, id, actorUserId, userId, request, cancellationToken) ? NoContent() : NotFound();
+        return await setMemberUseCase.SetMemberAsync(PrincipalType.Project, id, actorUserId, userId, request, cancellationToken) ? NoContent() : NotFound();
     }
 }

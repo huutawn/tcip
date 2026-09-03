@@ -1,5 +1,5 @@
 using TCIP.Business.Modules.Calendar.Application.Contracts;
-using TCIP.Business.Modules.Calendar.Application.UseCases;
+using TCIP.Business.Modules.Calendar.Application.UseCases.Events;
 using TCIP.Business.Modules.Calendar.Domain.Entities;
 using TCIP.Business.Modules.Calendar.Domain.Enums;
 using TCIP.Business.Modules.Calendar.Domain.Services;
@@ -12,12 +12,12 @@ namespace TCIP.Business.Tests;
 
 public sealed class ReminderAndMisfireTests
 {
-    private static (EventCommandUseCase CommandService, InMemoryCalendarRepository Repo, User User) CreateTestContext()
+    private static (CreateEventUseCase CommandService, InMemoryCalendarRepository Repo, User User) CreateTestContext()
     {
         var repo = new InMemoryCalendarRepository();
         var recurrence = new SimpleTestRecurrenceEngine();
         var planner = new ReminderSchedulePlanner(recurrence);
-        var service = new EventCommandUseCase(repo, recurrence, planner, TimeProvider.System);
+        var service = new CreateEventUseCase(repo, recurrence, planner, repo, TimeProvider.System);
 
         var user = new User { Id = Guid.NewGuid(), Email = "test@example.com", DisplayName = "Test", PasswordHash = "hash" };
         repo.Users[user.Id] = user;
@@ -89,6 +89,7 @@ public sealed class ReminderAndMisfireTests
             Status = EventStatus.Active,
             Version = 2
         };
+
         var rule = new ReminderRule
         {
             Id = Guid.NewGuid(),

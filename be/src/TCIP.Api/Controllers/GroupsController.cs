@@ -3,7 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using TCIP.Api.Security;
 using TCIP.Business.Modules.AccessControl.Domain.Models;
 using TCIP.Business.Modules.Directory.Application.Contracts;
-using TCIP.Business.Modules.Directory.Application.UseCases;
+using TCIP.Business.Modules.Directory.Application.UseCases.Groups;
+using TCIP.Business.Modules.Directory.Application.UseCases.Memberships;
 using TCIP.Business.Modules.Directory.Domain.Enums;
 
 namespace TCIP.Api.Controllers;
@@ -12,8 +13,9 @@ namespace TCIP.Api.Controllers;
 [Authorize]
 [Route("api/groups")]
 public sealed class GroupsController(
-    IGroupUseCase groupUseCase,
-    IMembershipUseCase membershipUseCase) : ControllerBase
+    ICreateGroupUseCase createGroupUseCase,
+    IGetMembersUseCase getMembersUseCase,
+    ISetMemberUseCase setMemberUseCase) : ControllerBase
 {
     [PermissionAuthorize(Permissions.GroupCreate)]
     [HttpPost]
@@ -22,14 +24,14 @@ public sealed class GroupsController(
         CancellationToken cancellationToken)
     {
         if (!User.TryGetUserId(out var actorUserId)) return Unauthorized();
-        var group = await groupUseCase.CreateAsync(request, actorUserId, cancellationToken);
+        var group = await createGroupUseCase.CreateAsync(request, actorUserId, cancellationToken);
         return Created($"api/groups/{group.Id}", group);
     }
 
     [PermissionAuthorize(Permissions.MembershipManage, ResourceRoute = "groupId", ResourceType = PrincipalType.Group)]
     [HttpGet("{groupId:guid}/members")]
     public async Task<IActionResult> GetMembers(Guid groupId, CancellationToken cancellationToken) =>
-        (await membershipUseCase.GetMembersAsync(PrincipalType.Group, groupId, cancellationToken)) is { } members
+        (await getMembersUseCase.GetMembersAsync(PrincipalType.Group, groupId, cancellationToken)) is { } members
             ? Ok(members)
             : NotFound();
 
@@ -42,7 +44,7 @@ public sealed class GroupsController(
         CancellationToken cancellationToken)
     {
         if (!User.TryGetUserId(out var actorUserId)) return Unauthorized();
-        return await membershipUseCase.SetMemberAsync(PrincipalType.Group, groupId, actorUserId, userId, request, cancellationToken)
+        return await setMemberUseCase.SetMemberAsync(PrincipalType.Group, groupId, actorUserId, userId, request, cancellationToken)
             ? NoContent()
             : NotFound();
     }

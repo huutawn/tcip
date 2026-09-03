@@ -1,3 +1,4 @@
+using TCIP.Business.Common.Ports;
 using TCIP.Business.Modules.Calendar.Application.Ports;
 using TCIP.Business.Modules.Calendar.Domain.Entities;
 using TCIP.Business.Modules.Calendar.Domain.Enums;
@@ -6,7 +7,12 @@ using TCIP.Business.Modules.Identity.Domain.Entities;
 
 namespace TCIP.Business.Tests.TestDoubles;
 
-public sealed class InMemoryCalendarRepository : ICalendarRepository
+public sealed class InMemoryCalendarRepository :
+    IEventRepository,
+    ICalendarDayQueryRepository,
+    INotificationRepository,
+    IPrincipalAvailabilityQuery,
+    IUserPrincipalLookupQuery
 {
     public readonly Dictionary<Guid, Event> Events = new();
     public readonly Dictionary<Guid, User> Users = new();
@@ -32,10 +38,13 @@ public sealed class InMemoryCalendarRepository : ICalendarRepository
         return Task.FromResult(ev);
     }
 
-    public Task<User?> GetUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    public Task<UserPrincipalInfo?> FindByIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        Users.TryGetValue(userId, out var user);
-        return Task.FromResult(user);
+        if (Users.TryGetValue(userId, out var user))
+        {
+            return Task.FromResult<UserPrincipalInfo?>(new UserPrincipalInfo(user.Id, user.PrincipalId, user.TimeZoneId, user.Language));
+        }
+        return Task.FromResult<UserPrincipalInfo?>(null);
     }
 
     public Task<IReadOnlyList<Event>> GetEventsForDayWindowAsync(
@@ -76,7 +85,7 @@ public sealed class InMemoryCalendarRepository : ICalendarRepository
         return Task.FromResult<Notification?>(notif);
     }
 
-    public Task<bool> PrincipalsExistAndAvailableAsync(IReadOnlyCollection<Guid> principalIds, CancellationToken cancellationToken = default)
+    public Task<bool> ArePrincipalsAvailableAsync(IReadOnlyCollection<Guid> principalIds, CancellationToken cancellationToken = default)
     {
         if (principalIds.Count == 0) return Task.FromResult(true);
         var count = principalIds.Distinct().Count(id => Principals.TryGetValue(id, out var p) && p.Available);

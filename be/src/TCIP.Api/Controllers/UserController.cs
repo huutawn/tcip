@@ -2,14 +2,17 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TCIP.Api.Security;
 using TCIP.Business.Modules.Identity.Application.Contracts;
-using TCIP.Business.Modules.Identity.Application.UseCases;
+using TCIP.Business.Modules.Identity.Application.UseCases.Users;
 using TCIP.Business.Modules.Identity.Domain.Enums;
 
 namespace TCIP.Api.Controllers;
 
 [ApiController]
 [Route("api/users")]
-public sealed class UserController(IUserUseCase userUseCase) : ControllerBase
+public sealed class UserController(
+    IGetUserByIdUseCase getUserByIdUseCase,
+    IGetUsersPageUseCase getUsersPageUseCase,
+    IUpdateUserRoleUseCase updateUserRoleUseCase) : ControllerBase
 {
     [Authorize(Roles = nameof(UserRole.Admin))]
     [HttpGet]
@@ -17,7 +20,7 @@ public sealed class UserController(IUserUseCase userUseCase) : ControllerBase
         [FromQuery] UserListQuery query,
         CancellationToken cancellationToken = default)
     {
-        return Ok(await userUseCase.GetPageAsync(query, cancellationToken));
+        return Ok(await getUsersPageUseCase.GetPageAsync(query, cancellationToken));
     }
 
     [Authorize(Roles = nameof(UserRole.Admin))]
@@ -26,7 +29,7 @@ public sealed class UserController(IUserUseCase userUseCase) : ControllerBase
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        var userResponse = await userUseCase.GetByIdAsync(id, cancellationToken);
+        var userResponse = await getUserByIdUseCase.GetByIdAsync(id, cancellationToken);
         if (userResponse is null)
         {
             return NotFound();
@@ -44,7 +47,7 @@ public sealed class UserController(IUserUseCase userUseCase) : ControllerBase
             return Unauthorized();
         }
 
-        var userResponse = await userUseCase.GetByIdAsync(userId, cancellationToken);
+        var userResponse = await getUserByIdUseCase.GetByIdAsync(userId, cancellationToken);
         if (userResponse is null)
         {
             return NotFound();
@@ -65,7 +68,7 @@ public sealed class UserController(IUserUseCase userUseCase) : ControllerBase
             return Unauthorized();
         }
 
-        var updated = await userUseCase.UpdateRoleAsync(
+        var updated = await updateUserRoleUseCase.UpdateRoleAsync(
             actorUserId,
             id,
             request,

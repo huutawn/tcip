@@ -35,9 +35,13 @@ public static class ServiceCollectionExtensions
                 options.UseNpgsql(connectionString));
         }
 
-        // Repositories
-        services.AddScoped<IUserRepository, UserRepository>();
+        // Identity Repositories
+        services.AddScoped<UserRepository>();
+        services.AddScoped<IUserRepository>(sp => sp.GetRequiredService<UserRepository>());
+        services.AddScoped<IUserPrincipalLookupQuery>(sp => sp.GetRequiredService<UserRepository>());
         services.AddScoped<ISessionRepository, SessionRepository>();
+
+        // Directory Repositories
         services.AddScoped<IDepartmentRepository, DepartmentRepository>();
         services.AddScoped<IGroupRepository, GroupRepository>();
         services.AddScoped<ITeamRepository, TeamRepository>();
@@ -46,8 +50,22 @@ public static class ServiceCollectionExtensions
         services.AddScoped<DirectoryRecipientResolver>();
         services.AddScoped<IDirectoryRecipientResolver>(sp => sp.GetRequiredService<DirectoryRecipientResolver>());
         services.AddScoped<IAudienceRecipientResolver>(sp => sp.GetRequiredService<DirectoryRecipientResolver>());
-        services.AddScoped<IRbacRepository, RbacRepository>();
-        services.AddScoped<ICalendarRepository, CalendarRepository>();
+        services.AddScoped<IUserAudienceMembershipQuery>(sp => sp.GetRequiredService<DirectoryRecipientResolver>());
+
+        // AccessControl Repositories
+        services.AddScoped<PrincipalRepository>();
+        services.AddScoped<IPrincipalRepository>(sp => sp.GetRequiredService<PrincipalRepository>());
+        services.AddScoped<IPrincipalAvailabilityQuery>(sp => sp.GetRequiredService<PrincipalRepository>());
+        services.AddScoped<IPermissionRepository, PermissionRepository>();
+        services.AddScoped<IRoleRepository, RoleRepository>();
+        services.AddScoped<IRoleAssignmentRepository, RoleAssignmentRepository>();
+        services.AddScoped<IPermissionQueryRepository, PermissionQueryRepository>();
+        services.AddScoped<IAuthorizationSnapshotRepository, AuthorizationSnapshotRepository>();
+
+        // Calendar Repositories
+        services.AddScoped<IEventRepository, EventRepository>();
+        services.AddScoped<ICalendarDayQueryRepository, CalendarDayQueryRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
 
         // Adapters
         services.AddSingleton<IRecurrenceEngine, RecurrenceEngine>();

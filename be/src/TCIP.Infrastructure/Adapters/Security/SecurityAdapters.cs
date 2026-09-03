@@ -53,7 +53,7 @@ public sealed class IdentityConfigurationAdapter(IConfiguration configuration) :
 
 public sealed class JwtTokenIssuer(
     IConfiguration configuration,
-    IRbacRepository rbacRepository) : ITokenIssuer
+    IAuthorizationSnapshotRepository authorizationSnapshotRepository) : ITokenIssuer
 {
     public async Task<string> GenerateAccessTokenAsync(
         User user,
@@ -78,7 +78,7 @@ public sealed class JwtTokenIssuer(
             new("principal_id", user.PrincipalId.ToString())
         };
 
-        var snapshot = await rbacRepository.GetAuthorizationSnapshotAsync(user.Id, cancellationToken);
+        var snapshot = await authorizationSnapshotRepository.GetAuthorizationSnapshotAsync(user.Id, cancellationToken);
         claims.AddRange(snapshot.GlobalPermissions.Select(permission => new Claim(PermissionClaimTypes.Permission, permission)));
         if (snapshot.IsGlobalAdmin) claims.Add(new Claim(PermissionClaimTypes.RbacAdmin, "true"));
         claims.AddRange(snapshot.OwnedResourcePrincipalIds.Select(id => new Claim(PermissionClaimTypes.ResourceOwner, id.ToString("N"))));
